@@ -120,6 +120,13 @@ textarea{min-height:64px;resize:vertical}
 #toast.on{opacity:1}
 .empty{color:var(--mut);font-size:14px;padding:6px 0}
 img.full{width:100%;border-radius:14px;margin-top:10px}
+/* premier lancement */
+#who{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;transition:opacity .35s}
+#who.out{opacity:0;pointer-events:none}
+#who h1{margin:0;font-size:30px;font-weight:800}
+#who .opts{display:flex;gap:18px;margin-top:26px}
+#who .opts button{border:0;background:var(--card);border-radius:28px;padding:20px 18px 16px;width:150px;display:flex;flex-direction:column;align-items:center;gap:12px;font:inherit;font-size:18px;font-weight:800;color:var(--ink);cursor:pointer;transition:transform .2s}
+#who .opts button:active{transform:scale(.95)}
 /* dépenses récurrentes */
 .sw{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border-radius:16px;margin-top:14px;cursor:pointer}
 .sw .grow{flex:1}
@@ -810,6 +817,16 @@ setInterval(()=>{if(tab==='today'&&!document.body.classList.contains('sheet'))re
 setInterval(()=>{if(document.visibilityState==='visible')sync();else syncBadge()},45000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});
 syncBadge();sync();
+/* premier lancement : qui utilise ce téléphone ? */
+const WHO_KEY='coparent_who';
+function askWho(){
+  const d=document.createElement('div');d.id='who';
+  d.innerHTML=`<div class="mut" style="font-size:15px">Bienvenue 👋</div><h1>Qui êtes-vous ?</h1><div class="mut">Pour savoir qui ajoute quoi. Modifiable plus tard dans Réglages.</div>
+  <div class="opts">${['A','B'].map(p=>`<button onclick="pickWho('${p}')">${head(p,96)}${name(p)}</button>`).join('')}</div>`;
+  document.body.appendChild(d);
+}
+function pickWho(p){S.settings.me=p;try{localStorage.setItem(WHO_KEY,'1')}catch(e){}save();render();const d=$('#who');d.classList.add('out');setTimeout(()=>d.remove(),400)}
+try{if(!localStorage.getItem(WHO_KEY))askWho()}catch(e){askWho()}
 </script>
 </body>
 </html>
