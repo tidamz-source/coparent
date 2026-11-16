@@ -116,6 +116,23 @@ textarea{min-height:64px;resize:vertical}
 #toast.on{opacity:1}
 .empty{color:var(--mut);font-size:14px;padding:6px 0}
 img.full{width:100%;border-radius:14px;margin-top:10px}
+/* dépenses récurrentes */
+.sw{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border-radius:16px;margin-top:14px;cursor:pointer}
+.sw .grow{flex:1}
+.tog{width:50px;height:30px;border-radius:99px;background:var(--card2);position:relative;flex:none;transition:background .25s}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--mut);transition:left .3s cubic-bezier(.34,1.32,.5,1),background .25s}
+.sw.on .tog{background:#86EFAC}
+.sw.on .tog::after{left:23px;background:#1D2135}
+.sw .more{display:none;font-size:13px;color:var(--mut);margin-top:2px}
+.sw.on .more{display:block}
+.rec{display:flex;gap:10px;overflow-x:auto;margin:0 -20px;padding:2px 20px 4px;scrollbar-width:none}
+.rec::-webkit-scrollbar{display:none}
+.rc{flex:none;width:138px;background:var(--card);border-radius:18px;padding:12px;cursor:pointer;border:0;text-align:left;color:var(--ink);font:inherit}
+.rc b{display:block;font-size:17px;margin-top:8px}
+.rc .l{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.rc.add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:transparent;border:2px dashed var(--card2);color:var(--mut);font-weight:700;font-size:13px}
+.rc.add span{font-size:24px;line-height:1}
+.rbadge{display:inline-block;font-size:11px;font-weight:800;color:#86EFAC;background:rgba(134,239,172,.15);border-radius:99px;padding:1px 7px;margin-left:6px;vertical-align:2px}
 .vts{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
 .vt{border:0;border-radius:12px;color:#1D2135;font:inherit;font-weight:800;font-size:15px;padding:6px 0;line-height:1.1;cursor:pointer}
 .vt small{display:block;font-size:10px;font-weight:600;opacity:.75}
@@ -181,7 +198,7 @@ function defaults(){
   return{
     settings:{v2:true,me:'A',parents:{A:{name:'Papa',color:'#7DD3FC'},B:{name:'Maman',color:'#FDBA74'}},weekendRef:'2026-11-20',weekendParent:'A',switchHour:18,zone:'Zone C'},
     children:kids,overrides:[],events:[],expenses:[],months:{},
-    log:[],vacCache:{},vacSplit:{}
+    log:[],vacCache:{},vacSplit:{},recurring:[]
   };
 }
 function load(){
@@ -326,6 +343,52 @@ function balText(b,big){
   return `<div class="${big?'big':''}"><span style="color:${big?'inherit':col(debtor)}">${name(debtor)}</span> doit <b>${fmtE(Math.abs(b))}</b> à ${name(cred)}</div>`;
 }
 
+/* ---------- dépenses récurrentes ----------
+   Un modèle {label, amount, payer, cat, child, day, start} crée tout seul la dépense
+   de chaque mois, le jour choisi, dès que ce jour est arrivé. */
+const dim=m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo,0).getDate()};
+function genRecurring(){
+  const t=today(),cm=curMonth();let changed=false;
+  for(const r of S.recurring||[]){
+    for(let m=r.start;m<=cm;m=addM(m,1)){
+      if((r.skips||[]).includes(m))continue;
+      if(S.expenses.some(e=>e.recurId===r.id&&e.date.slice(0,7)===m))continue;
+      const date=m+'-'+pad(Math.min(r.day,dim(m)));
+      if(date>t)continue;
+      S.expenses.push({id:uid(),label:r.label,amount:r.amount,date,payer:r.payer,cat:r.cat,child:r.child,recurId:r.id});
+      if(S.months[m]?.settled)S.months[m]={settled:false};
+      changed=true;
+    }
+  }
+  if(changed)save();
+}
+const recTotal=()=>(S.recurring||[]).reduce((a,r)=>a+r.amount,0);
+function nextRecDate(r){const t=today();let m=curMonth();for(let i=0;i<2;i++,m=addM(m,1)){const d=m+'-'+pad(Math.min(r.day,dim(m)));if(d>t||!S.expenses.some(e=>e.recurId===r.id&&e.date.slice(0,7)===m))return d}return m+'-'+pad(r.day)}
+function openRecur(id){
+  const r=S.recurring.find(x=>x.id===id);if(!r)return;
+  openSheet(`<h3>↻ ${esc(r.label)}</h3><div class="mut">Ajoutée automatiquement chaque mois. Les changements s'appliquent aux prochains mois.</div>
+  <label class="f">Libellé<input id="r_l" value="${esc(r.label)}"></label>
+  <div class="two"><label class="f">Montant (€)<input id="r_a" type="number" inputmode="decimal" step="0.01" value="${r.amount}"></label><label class="f">Jour du mois<input id="r_d" type="number" inputmode="numeric" min="1" max="31" value="${r.day}"></label></div>
+  <label class="f">Payé par</label><div class="seg slider" id="r_p" data-k="rpayer">${['A','B'].map(p=>`<button class="${r.payer===p?'on':''}" data-v="${p}" onclick="segPick(this)">${name(p)}</button>`).join('')}</div>
+  <label class="f">Catégorie<select id="r_c">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${r.cat===k?'selected':''}>${v}</option>`).join('')}</select></label>
+  <label class="f">Pour<select id="r_k"><option value="all">Les deux</option>${S.children.map(c=>`<option value="${c.id}" ${r.child===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+  <div class="mut" style="margin-top:10px">Prochaine : ${fmtD(nextRecDate(r))} · ${fmtE(r.amount/2)} chacun</div>
+  <button class="btn full" onclick="saveRecur('${id}')">Enregistrer</button>
+  <button class="btn full dan" onclick="stopRecur('${id}')">Arrêter la récurrence</button>`);
+}
+function saveRecur(id){
+  const r=S.recurring.find(x=>x.id===id);const a=parseFloat(String(val('r_a')).replace(',','.'));
+  const d=Math.min(31,Math.max(1,parseInt(val('r_d'))||r.day));
+  if(!val('r_l')||!(a>0))return toast('Libellé et montant requis');
+  Object.assign(r,{label:val('r_l'),amount:Math.round(a*100)/100,day:d,payer:segVal('r_p'),cat:val('r_c'),child:val('r_k')});
+  closeSheet();commit(`a modifié la dépense mensuelle « ${r.label} »`);
+}
+function stopRecur(id){
+  const r=S.recurring.find(x=>x.id===id);
+  askConfirm(`Arrêter « ${r.label} » ? Les dépenses déjà ajoutées restent.`,()=>{S.recurring=S.recurring.filter(x=>x.id!==id);commit(`a arrêté la dépense mensuelle « ${r.label} »`)});
+}
+function toggleSw(el){el.classList.toggle('on');const d=val('x_d');if(d)$('#x_day').textContent=parseInt(d.slice(8))}
+
 /* ---------- navigation ---------- */
 let tab='today',calM=curMonth(),depM=curMonth(),kidId='c1',sub='vac';
 const TITLES={today:"Aujourd'hui",cal:'Calendrier',dep:'Dépenses',kids:'Enfants',plus:'Plus'};
@@ -352,6 +415,7 @@ addEventListener('resize',()=>{document.querySelectorAll('.slider>.ind').forEach
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.t));
 
 function render(){
+  genRecurring();
   $('#title').textContent=TITLES[tab];
   const SUBS={today:fmtD(today()).replace(/^./,c=>c.toUpperCase()),cal:'Garde & événements',dep:'Partage 50/50',kids:'Fiches',plus:'Réglages & outils'};
   $('#sub').textContent=SUBS[tab];
@@ -504,16 +568,20 @@ function vDep(){
     ${st.ex.length?(settled?`<button class="btn full sec" onclick="unsettle('${depM}')">Rouvrir le mois</button>`:`<button class="btn full" onclick="settle('${depM}')">Marquer le mois comme réglé</button>`):''}
   </div>
   ${Object.keys(cats).length?`<h2>Par catégorie</h2><div class="card">${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="margin:6px 0"><div class="row sp"><span>${CATS[k]||k}</span><b>${fmtE(v)}</b></div><div class="catbar" style="width:${v/maxC*100}%"></div></div>`).join('')}</div>`:''}
+  <h2>Chaque mois${(S.recurring||[]).length?` · ${fmtE(recTotal())}`:''}</h2>
+  ${(S.recurring||[]).length?`<div class="rec">${S.recurring.slice().sort((a,b)=>a.day-b.day).map(r=>`<button class="rc" onclick="openRecur('${r.id}')"><div class="row sp">${head(r.payer,28)}<span class="mut" style="font-weight:700">le ${r.day}</span></div><b>${fmtE(r.amount)}</b><div class="l">${esc(r.label)}</div></button>`).join('')}<button class="rc add" onclick="openExp(null,true)"><span>+</span>Ajouter</button></div>`
+  :`<div class="card row" style="cursor:pointer" onclick="openExp(null,true)"><span style="font-size:24px">↻</span><div class="grow"><b>Dépenses fixes</b><div class="mut">Cantine, assurance, forfait… saisis-les une fois, elles s'ajoutent toutes seules chaque mois.</div></div></div>`}
   <h2>Dépenses du mois</h2>
   <div class="card">${st.ex.length?st.ex.sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`<div class="li" onclick="openExp('${e.id}')">
     ${e.photo?`<img class="thumb" src="${e.photo}" alt="">`:head(e.payer,36)}
-    <div class="grow"><div class="t">${esc(e.label)}</div><div class="mut">${fmtS(e.date)} · ${(CATS[e.cat]||'').split(' ').slice(1).join(' ')} · ${kidName(e.child)} · payé par ${name(e.payer)}</div></div><b>${fmtE(e.amount)}</b></div>`).join(''):'<div class="empty">Aucune dépense. Touche + pour en ajouter.</div>'}</div>
+    <div class="grow"><div class="t">${esc(e.label)}${e.recurId?'<span class="rbadge">↻</span>':''}</div><div class="mut">${fmtS(e.date)} · ${(CATS[e.cat]||'').split(' ').slice(1).join(' ')} · ${kidName(e.child)} · payé par ${name(e.payer)}</div></div><b>${fmtE(e.amount)}</b></div>`).join(''):'<div class="empty">Aucune dépense. Touche + pour en ajouter.</div>'}</div>
   <h2>Historique</h2>
   <div class="card">${hist.length?hist.map(m=>{const s=monthStats(m),ok=S.months[m]?.settled;return `<div class="li" onclick="depM='${m}';render();scrollTo(0,0)"><div class="grow"><div class="t">${fmtM(m)}</div><div class="mut">${fmtE(s.total)} · ${ok?'réglé le '+fmtS(S.months[m].at):(Math.abs(s.bal)<.005?'équilibre':name(s.bal>0?'B':'A')+' doit '+fmtE(Math.abs(s.bal)))}</div></div><span class="pill ${ok?'ok':'wait'}">${ok?'Réglé':'À régler'}</span></div>`}).join(''):'<div class="empty">Pas encore d\'historique</div>'}</div>`;
 }
 let tmpPhoto=null;
-function openExp(id){
+function openExp(id,recur){
   const e=id?S.expenses.find(x=>x.id===id):{date:today(),payer:S.settings.me,cat:'ecole',child:'all'};
+  const rec=e.recurId&&S.recurring.find(r=>r.id===e.recurId);
   tmpPhoto=e.photo||null;
   openSheet(`<h3>${id?'Modifier la':'Nouvelle'} dépense</h3>
   <label class="f">Libellé<input id="x_l" value="${esc(e.label)}" placeholder="Ex. Licence de foot"></label>
@@ -524,9 +592,12 @@ function openExp(id){
   <label class="f">Ticket (photo, facultatif)<input type="file" accept="image/*" onchange="pickPhoto(this)"></label>
   <div id="x_img">${tmpPhoto?`<img class="full" src="${tmpPhoto}">`:''}</div>
   <div class="mut" style="margin-top:8px">Répartition 50/50 : chacun paie ${'<span id="x_half">'+(e.amount?fmtE(e.amount/2):'la moitié')+'</span>'}.</div>
+  ${id?(rec?`<div class="sw on" onclick="openRecur('${rec.id}')"><div class="grow"><b>↻ Dépense mensuelle</b><div class="more">Ici tu modifies seulement ce mois. Touche pour gérer la récurrence.</div></div><span style="font-size:20px;color:var(--mut)">›</span></div>`:'')
+    :`<div class="sw ${recur?'on':''}" id="x_rec" onclick="toggleSw(this)"><div class="grow"><b>↻ Tous les mois</b><div class="more">Ajoutée automatiquement le <span id="x_day">${parseInt(e.date.slice(8))}</span> de chaque mois</div></div><span class="tog"></span></div>`}
   <button class="btn full" onclick="saveExp('${id||''}')">Enregistrer</button>
   ${id?`<button class="btn full dan" onclick="delExp('${id}')">Supprimer</button>`:''}`);
   $('#x_a').oninput=ev=>{const v=parseFloat(ev.target.value);$('#x_half').textContent=v?fmtE(v/2):'la moitié'};
+  $('#x_d').onchange=ev=>{const x=$('#x_day');if(x&&ev.target.value)x.textContent=parseInt(ev.target.value.slice(8))};
 }
 function segPick(b){b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));placeInd(b.parentNode)}
 const segVal=id=>document.querySelector('#'+id+' .on')?.dataset.v;
@@ -542,12 +613,19 @@ function saveExp(id){
   const a=parseFloat(String(val('x_a')).replace(',','.'));
   const o={label:val('x_l'),amount:Math.round(a*100)/100,date:val('x_d'),payer:segVal('x_p'),cat:val('x_c'),child:val('x_k'),photo:tmpPhoto};
   if(!o.label||!(a>0)||!o.date)return toast('Libellé, montant et date requis');
+  if(!id&&$('#x_rec')?.classList.contains('on')){
+    S.recurring=S.recurring||[];
+    const r={id:uid(),label:o.label,amount:o.amount,payer:o.payer,cat:o.cat,child:o.child,day:parseInt(o.date.slice(8)),start:o.date.slice(0,7),skips:[]};
+    S.recurring.push(r);genRecurring();
+    const ex=S.expenses.find(x=>x.recurId===r.id&&x.date.slice(0,7)===r.start);if(ex&&o.photo)ex.photo=o.photo;
+    depM=o.date.slice(0,7);closeSheet();commit(`a ajouté la dépense mensuelle « ${o.label} » ${fmtE(o.amount)} (le ${r.day} de chaque mois)`);return;
+  }
   if(id)Object.assign(S.expenses.find(x=>x.id===id),o);else S.expenses.push({id:uid(),...o});
   const m=o.date.slice(0,7);let extra='';
   if(S.months[m]?.settled){S.months[m]={settled:false};extra=' (mois rouvert)'}
   depM=m;closeSheet();commit(`${id?'a modifié':'a ajouté'} la dépense « ${o.label} » ${fmtE(o.amount)}${extra}`);
 }
-function delExp(id){const e=S.expenses.find(x=>x.id===id);askConfirm(`Supprimer « ${e.label} » (${fmtE(e.amount)}) ?`,()=>{S.expenses=S.expenses.filter(x=>x.id!==id);commit(`a supprimé la dépense « ${e.label} »`)})}
+function delExp(id){const e=S.expenses.find(x=>x.id===id);askConfirm(`Supprimer « ${e.label} » (${fmtE(e.amount)})${e.recurId?' pour ce mois':''} ?`,()=>{S.expenses=S.expenses.filter(x=>x.id!==id);const r=e.recurId&&S.recurring.find(x=>x.id===e.recurId);if(r){r.skips=r.skips||[];r.skips.push(e.date.slice(0,7))}commit(`a supprimé la dépense « ${e.label} »`)})}
 function settle(m){const s=monthStats(m);askConfirm(`Confirmer que ${fmtM(m)} est réglé ?`,()=>{S.months[m]={settled:true,at:today(),bal:s.bal};commit(`a marqué ${fmtM(m)} comme réglé`)})}
 function unsettle(m){S.months[m]={settled:false};commit(`a rouvert ${fmtM(m)}`)}
 
