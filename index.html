@@ -468,7 +468,7 @@ function openRecur(id){
   openSheet(`<h3>↻ ${esc(r.label)}</h3><div class="mut">Ajoutée automatiquement chaque mois. Les changements s'appliquent aux prochains mois.</div>
   <label class="f">Libellé<input id="r_l" value="${esc(r.label)}"></label>
   <div class="two"><label class="f">Montant (€)<input id="r_a" type="number" inputmode="decimal" step="0.01" value="${r.amount}"></label><label class="f">Jour du mois<input id="r_d" type="number" inputmode="numeric" min="1" max="31" value="${r.day}"></label></div>
-  <label class="f" id="r_pl">${r.amount<0?'Aide perçue par':'Payé par'}</label><div class="seg slider" id="r_p" data-k="rpayer">${['A','B'].map(p=>`<button class="${r.payer===p?'on':''}" data-v="${p}" onclick="segPick(this)">${name(p)}</button>`).join('')}</div>
+  <label class="f" id="r_pl">${r.amount<0?'Perçue par':'Payé par'}</label><div class="seg slider" id="r_p" data-k="rpayer">${['A','B'].map(p=>`<button class="${r.payer===p?'on':''}" data-v="${p}" onclick="segPick(this)">${name(p)}</button>`).join('')}</div>
   <label class="f">Catégorie<select id="r_c">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${r.cat===k?'selected':''}>${v}</option>`).join('')}</select></label>
   <label class="f">Pour<select id="r_k"><option value="all">Les deux</option>${S.children.map(c=>`<option value="${c.id}" ${r.child===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
   <div class="mut" style="margin-top:10px">Prochaine : ${fmtD(nextRecDate(r))} · ${fmtE(r.amount/2)} chacun</div>
@@ -683,7 +683,7 @@ function openExp(id,recur){
   openSheet(`<h3>${id?'Modifier la':'Nouvelle'} dépense</h3>
   <label class="f">Libellé<input id="x_l" value="${esc(e.label)}" placeholder="Ex. Licence de foot"></label>
   <div class="two"><label class="f">Montant (€)<input id="x_a" type="number" inputmode="decimal" step="0.01" value="${e.amount??''}"></label><label class="f">Date<input type="date" id="x_d" value="${e.date}"></label></div>
-  <label class="f" id="x_pl">${e.amount<0?'Aide perçue par':'Payé par'}</label><div class="seg slider" id="x_p" data-k="payer">${['A','B'].map(p=>`<button class="${e.payer===p?'on':''}" data-v="${p}" onclick="segPick(this)">${name(p)}</button>`).join('')}</div>
+  <label class="f" id="x_pl">${e.amount<0?'Perçue par':'Payé par'}</label><div class="seg slider" id="x_p" data-k="payer">${['A','B'].map(p=>`<button class="${e.payer===p?'on':''}" data-v="${p}" onclick="segPick(this)">${name(p)}</button>`).join('')}</div>
   <label class="f">Catégorie<select id="x_c">${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${e.cat===k?'selected':''}>${v}</option>`).join('')}</select></label>
   <label class="f">Pour<select id="x_k"><option value="all">Les deux</option>${S.children.map(c=>`<option value="${c.id}" ${e.child===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
   <div class="mut" style="margin-top:8px" id="x_halfl">${halfText(e.amount)}</div>
@@ -692,7 +692,7 @@ function openExp(id,recur){
     :`<div class="sw ${recur?'on':''}" id="x_rec" onclick="toggleSw(this)"><div class="grow"><b>↻ Tous les mois</b><div class="more">Ajoutée automatiquement le <span id="x_day">${parseInt(e.date.slice(8))}</span> de chaque mois</div></div><span class="tog"></span></div>`}
   <button class="btn full" onclick="saveExp('${id||''}')">Enregistrer</button>
   ${id?`<button class="btn full dan" onclick="delExp('${id}')">Supprimer</button>`:''}`);
-  $('#x_a').oninput=ev=>{const v=parseFloat(String(ev.target.value).replace(',','.'));$('#x_halfl').textContent=halfText(v);$('#x_pl').textContent=v<0?'Aide perçue par':'Payé par';if(v<0&&$('#x_c').value!=='aide'){$('#x_c').value='aide'}};
+  $('#x_a').oninput=ev=>{const v=parseFloat(String(ev.target.value).replace(',','.'));$('#x_halfl').textContent=halfText(v);$('#x_pl').textContent=v<0?'Perçue par':'Payé par';if(v<0&&$('#x_c').value!=='aide'){$('#x_c').value='aide'}};
   $('#x_d').onchange=ev=>{const x=$('#x_day');if(x&&ev.target.value)x.textContent=parseInt(ev.target.value.slice(8))};
 }
 function halfText(v){return !v?'Répartition 50/50 : chacun paie la moitié.':v<0?`Aide partagée 50/50 : ${fmtE(-v/2)} pour chacun.`:`Répartition 50/50 : chacun paie ${fmtE(v/2)}.`}
