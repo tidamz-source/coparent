@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1D2135">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Coparent">
 <title>Coparentalité</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
@@ -629,6 +636,8 @@ document.addEventListener('touchend',e=>{if(!sw)return;const t=e.changedTouches[
   if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){calM=addM(calM,dx<0?1:-1);render();const c=$('.cal');if(c)c.animate([{transform:`translateX(${dx<0?40:-40}px)`,opacity:.3},{transform:'none',opacity:1}],{duration:180,easing:'ease-out'})}},{passive:true});
 render();
 fetchVac();
+/* PWA : installation + hors ligne (ignoré là où ce n'est pas permis) */
+try{if('serviceWorker' in navigator&&location.protocol==='https:'&&!location.hostname.endsWith('claude.ai'))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
 setInterval(()=>{if(tab==='today'&&!document.body.classList.contains('sheet'))render()},60000);
 </script>
 </body>
