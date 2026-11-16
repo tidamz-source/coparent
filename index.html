@@ -129,6 +129,13 @@ img.full{width:100%;border-radius:14px;margin-top:10px}
 #who .opts{display:flex;gap:18px;margin-top:26px}
 #who .opts button{border:0;background:var(--card);border-radius:28px;padding:20px 18px 16px;width:150px;display:flex;flex-direction:column;align-items:center;gap:12px;font:inherit;font-size:18px;font-weight:800;color:var(--ink);cursor:pointer;transition:transform .2s}
 #who .opts button:active{transform:scale(.95)}
+/* documents */
+.doc{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px;border-radius:16px;background:var(--card2)}
+.doc .ico{width:42px;height:42px;border-radius:12px;background:rgba(252,165,165,.18);color:#FCA5A5;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:none}
+.doc .grow{flex:1;min-width:0}
+.doc .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc.add{border:2px dashed var(--card2);background:transparent;cursor:pointer;color:var(--mut);font-weight:700;justify-content:center;width:100%;font:inherit}
+.doc input[type=file]{display:none}
 /* dépenses récurrentes */
 .sw{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border-radius:16px;margin-top:14px;cursor:pointer}
 .sw .grow{flex:1}
@@ -722,7 +729,7 @@ function unsettle(m){S.months[m]={settled:false};commit(`a rouvert ${fmtM(m)}`)}
 /* ---------- vue Enfants ---------- */
 const FICHE=[
  ['Identité',[['name','Prénom'],['birth','Date de naissance','date'],['blood','Groupe sanguin'],['color','Couleur de la tête','color']]],
- ['Santé',[['doctor','Médecin traitant'],['doctorTel','Téléphone du médecin','tel'],['allergies','Allergies','area'],['treatments','Traitements en cours','area'],['vaccins','Vaccins (dernier rappel)','area'],['mutuelle','Mutuelle']]],
+ ['Santé',[['doctor','Médecin traitant'],['doctorTel','Téléphone du médecin','tel'],['allergies','Allergies','area'],['treatments','Traitements en cours','area'],['vaccins','Vaccins (dernier rappel)','area'],['mutuelle','Mutuelle'],['mutuelleDoc','Attestation de mutuelle','doc']]],
  ['École',[['school','Établissement'],['classe','Classe'],['teacher','Professeur principal'],['schedule','Horaires','area'],['schoolAccess','Accès ENT / Pronote','area']]],
  ['Activités',[['activities','Clubs, coachs, horaires d\'entraînement','area']]],
  ['Tailles',[['size','Taille vêtements'],['shoe','Pointure'],['sizeDate','Mis à jour le','date']]],
@@ -737,7 +744,55 @@ function vKids(){
   <div class="profile">${head(k.id,72)}<div><div class="big">${esc(k.name)}</div><div class="mut">${k.birth?age(k.birth):'Âge à compléter'}${k.classe?' · '+esc(k.classe):''}</div></div></div>
   <div class="tiles">${tile('Taille',k.size)}${tile('Pointure',k.shoe)}${tile('Allergies',k.allergies)}${tile('Médecin',k.doctor)}</div>
   <div class="mut">Les modifications sont enregistrées automatiquement.</div>
-  ${FICHE.map(([t,fs])=>`<div class="card"><div class="sec-t">${t}</div>${fs.map(([key,lab,ty])=>`<label class="f">${lab}${ty==='area'?`<textarea onchange="setKid('${k.id}','${key}',this.value)">${esc(k[key])}</textarea>`:`<input type="${ty||'text'}" value="${esc(k[key]||(ty==='color'?'#86EFAC':''))}" onchange="setKid('${k.id}','${key}',this.value)">`}</label>`).join('')}</div>`).join('')}`;
+  ${FICHE.map(([t,fs])=>`<div class="card"><div class="sec-t">${t}</div>${fs.map(([key,lab,ty])=>ty==='doc'?docField(k,key,lab):`<label class="f">${lab}${ty==='area'?`<textarea onchange="setKid('${k.id}','${key}',this.value)">${esc(k[key])}</textarea>`:`<input type="${ty||'text'}" value="${esc(k[key]||(ty==='color'?'#86EFAC':''))}" onchange="setKid('${k.id}','${key}',this.value)">`}</label>`).join('')}</div>`).join('')}`;
+}
+/* ---------- documents (PDF/photo) stockés dans le Google Drive du script ---------- */
+async function api(body){
+  const res=await fetch(SY.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({secret:SY.secret,...body})});
+  const j=await res.json();
+  if(!j.ok)throw new Error(j.error==='secret'?'Code secret incorrect':j.error||'Erreur du script');
+  if(body.action&&j.rows)throw new Error('le script Google doit être mis à jour');
+  return j;
+}
+function docField(k,key,lab){
+  const d=k[key];
+  return `<div class="label f" style="margin-top:12px;font-size:13px;color:var(--mut);font-weight:600">${lab}</div>`+(d?
+  `<div class="doc"><span class="ico">${/pdf/i.test(d.mime||d.name)?'PDF':'IMG'}</span><div class="grow"><div class="n">${esc(d.name)}</div><div class="mut">Ajouté le ${fmtS(d.at)}${d.size?' · '+Math.max(1,Math.round(d.size/1024))+' Ko':''}</div></div>
+   <button class="btn sm" onclick="openDoc('${k.id}','${key}')">Ouvrir</button>
+   <label class="btn sm sec" style="cursor:pointer">Remplacer<input type="file" accept="application/pdf,image/*" style="display:none" onchange="uploadDoc('${k.id}','${key}',this)"></label></div>
+   <button class="btn sm dan" style="margin-top:8px" onclick="delDoc('${k.id}','${key}')">Retirer le document</button>`
+  :`<label class="doc add"><input type="file" accept="application/pdf,image/*" onchange="uploadDoc('${k.id}','${key}',this)">＋ Joindre un PDF ou une photo</label>`);
+}
+const readB64=f=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(f)});
+async function uploadDoc(kidId,key,inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  if(!SY.url)return toast('Connecte d\'abord Google Sheets (Plus › Réglages)');
+  if(f.size>8e6)return toast('Fichier trop lourd (8 Mo max)');
+  toast('Envoi du document…');
+  try{
+    const j=await api({action:'upload',name:f.name,mime:f.type||'application/pdf',data:await readB64(f)});
+    const k=kid(kidId),old=k[key];
+    k[key]={id:j.id,name:f.name,mime:f.type||'application/pdf',size:f.size,at:today()};
+    commit(`a ajouté le document « ${f.name} » à la fiche de ${k.name}`);toast('Document ajouté ✓');
+    if(old&&old.id)api({action:'delete',id:old.id}).catch(()=>{});
+  }catch(e){toast('Échec : '+(e.message.includes('fetch')?'pas de connexion':e.message))}
+}
+async function openDoc(kidId,key){
+  const d=kid(kidId)[key];if(!d)return;
+  if(!SY.url)return toast('Connecte d\'abord Google Sheets (Plus › Réglages)');
+  const w=window.open('','_blank');toast('Ouverture…');
+  try{
+    const j=await api({action:'get',id:d.id});
+    const bin=atob(j.data),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([u8],{type:j.mime||d.mime}));
+    if(w&&!w.closed)w.location.href=url;
+    else{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.download=d.name;document.body.appendChild(a);a.click();a.remove()}
+    setTimeout(()=>URL.revokeObjectURL(url),120000);
+  }catch(e){if(w&&!w.closed)w.close();toast('Échec : '+(e.message.includes('fetch')?'pas de connexion':e.message))}
+}
+function delDoc(kidId,key){
+  const k=kid(kidId),d=k[key];
+  askConfirm(`Retirer « ${d.name} » ?`,()=>{delete k[key];commit(`a retiré le document « ${d.name} » de la fiche de ${k.name}`);if(SY.url)api({action:'delete',id:d.id}).catch(()=>{})});
 }
 function setKid(id,key,v){const k=kid(id);const lab=FICHE.flatMap(x=>x[1]).find(f=>f[0]===key)?.[1]||key;k[key]=v.trim();log(`a modifié la fiche de ${k.name} (${lab})`);save();if(['name','birth','color','size','shoe','allergies','doctor','classe'].includes(key))render();else toast('Enregistré')}
 

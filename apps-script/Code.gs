@@ -13,6 +13,24 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); } catch (x) { return out({ ok: false, error: 'Requête invalide' }); }
   if (body.secret !== SECRET) return out({ ok: false, error: 'secret' });
 
+  // Documents (attestation de mutuelle…) : rangés dans un dossier de ton Google Drive, jamais partagés publiquement
+  if (body.action === 'upload') {
+    const blob = Utilities.newBlob(Utilities.base64Decode(body.data), body.mime || 'application/pdf', body.name || 'document.pdf');
+    const f = docFolder().createFile(blob);
+    return out({ ok: true, id: f.getId(), name: f.getName() });
+  }
+  if (body.action === 'get') {
+    const f = docFile(body.id);
+    if (!f) return out({ ok: false, error: 'Document introuvable' });
+    const b = f.getBlob();
+    return out({ ok: true, data: Utilities.base64Encode(b.getBytes()), mime: b.getContentType(), name: f.getName() });
+  }
+  if (body.action === 'delete') {
+    const f = docFile(body.id);
+    if (f) f.setTrashed(true);
+    return out({ ok: true });
+  }
+
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -54,6 +72,22 @@ function doPost(e) {
 
 function doGet() {
   return ContentService.createTextOutput('Coparentalité : le script fonctionne.');
+}
+
+const FOLDER = 'Coparentalité – documents';
+function docFolder() {
+  const it = DriveApp.getFoldersByName(FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(FOLDER);
+}
+// Seuls les fichiers du dossier de l'app sont accessibles
+function docFile(id) {
+  try {
+    const f = DriveApp.getFileById(id);
+    const parents = f.getParents();
+    const folderId = docFolder().getId();
+    while (parents.hasNext()) if (parents.next().getId() === folderId) return f;
+  } catch (x) {}
+  return null;
 }
 
 function out(o) {
