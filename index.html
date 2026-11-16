@@ -79,10 +79,12 @@ h2{font-size:13px;margin:22px 0 4px;color:var(--mut);font-weight:700;text-transf
 .hero .k{font-size:13px;font-weight:700;opacity:.75}
 .hero .big{line-height:1.15}
 .week{display:flex;gap:2px}
-.week div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0;border-radius:14px;font-size:11px;color:var(--mut);font-weight:700}
-.week div.on{background:var(--card2)}
-.week div b{font-size:16px;color:var(--ink)}
-.week div i{width:18px;height:4px;border-radius:2px;display:block}
+.week button{flex:1;position:relative;border:0;background:none;font:inherit;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0;border-radius:14px;font-size:11px;color:var(--mut);font-weight:700;cursor:pointer;transition:background .2s,transform .15s}
+.week button:active{transform:scale(.92);background:var(--card2)}
+.week button.on{background:var(--card2)}
+.week button b{font-size:16px;color:var(--ink)}
+.week button i{width:18px;height:4px;border-radius:2px;display:block}
+.week button em{position:absolute;top:7px;right:calc(50% - 15px);width:6px;height:6px;border-radius:50%;background:var(--acc)}
 .minis{display:flex;gap:10px}
 .minis .card{flex:1;margin:0;cursor:pointer}
 .heads{display:flex;flex:none}
@@ -548,7 +550,7 @@ function vToday(){
   const now=new Date(),t=today(),h=holderAt(now),ns=nextSwitch(now);
   const v=vacOf(t),nv=VAC().find(x=>x.s>t),vv=v||nv;
   const ev=S.events.filter(e=>e.date>=t&&e.date<=addD(t,14)).sort(byDT);
-  let wk='';for(let i=0;i<7;i++){const s=addD(t,i),p=nightParent(s).p,d=parse(s);wk+=`<div class="${i?'':'on'}">${JC[d.getDay()]}<b>${d.getDate()}</b><i style="background:${col(p)}"></i></div>`}
+  let wk='';for(let i=0;i<7;i++){const s=addD(t,i),p=nightParent(s).p,d=parse(s);const ev=S.events.some(e=>e.date===s);wk+=`<button class="${i?'':'on'}" aria-label="${fmtD(s)}" onclick="openDay('${s}')">${JC[d.getDay()]}<b>${d.getDate()}</b><i style="background:${col(p)}"></i>${ev?'<em></em>':''}</button>`}
   const days=vv&&!v?Math.round((parse(vv.s)-parse(t))/864e5):0;
   const b=globalBal(),debtor=b>0?'B':'A';
   const nx=ev[0];
