@@ -196,10 +196,11 @@ const col=p=>S.settings.parents[p].color;
 const kid=id=>S.children.find(c=>c.id===id);
 const kidName=id=>id==='all'||!id?'Les deux':esc(kid(id)?.name||'?');
 /* ---------- têtes (provisoires : remplaçables plus tard par une photo via person.photo) ---------- */
-function person(id){if(id==='A'||id==='B'){const p=S.settings.parents[id];return{name:p.name,color:p.color,photo:p.photo,kid:false}}const k=kid(id);return k?{name:k.name,color:k.color||'#86EFAC',photo:k.photo,kid:true}:{name:'?',color:'#888',kid:true}}
+const AVATARS={A:'avatars/papa.webp',B:'avatars/maman.webp',c1:'avatars/enfant1.webp',c2:'avatars/enfant2.webp'};
+function person(id){if(id==='A'||id==='B'){const p=S.settings.parents[id];return{name:p.name,color:p.color,photo:p.photo||AVATARS[id],kid:false}}const k=kid(id);return k?{name:k.name,color:k.color||'#86EFAC',photo:k.photo||AVATARS[id],kid:true}:{name:'?',color:'#888',kid:true}}
 function head(id,s=36){
   const p=person(id);
-  if(p.photo)return `<img class="face" src="${p.photo}" alt="${esc(p.name)}" style="width:${s}px;height:${s}px">`;
+  if(p.photo)return `<img class="face" src="${p.photo}" alt="${esc(p.name)}" style="width:${s}px;height:${s}px;background:${p.color}">`;
   const ink='#1D2135',c=p.color;
   const top=p.kid?`<path d="M20 5c-2 0-3 2-2.5 4 1-1.4 2.6-1.6 4-.6.2-1.8-.3-3.4-1.5-3.4z" fill="${c}"/>`:`<circle cx="9" cy="10" r="4.5" fill="${c}"/><circle cx="31" cy="10" r="4.5" fill="${c}"/>`;
   return `<svg class="face" width="${s}" height="${s}" viewBox="0 0 40 40" role="img" aria-label="${esc(p.name)}">${top}<circle cx="20" cy="22" r="15" fill="${c}"/><ellipse cx="14.5" cy="21" rx="2" ry="2.6" fill="${ink}"/><ellipse cx="25.5" cy="21" rx="2" ry="2.6" fill="${ink}"/><circle cx="15.2" cy="20" r=".8" fill="#fff"/><circle cx="26.2" cy="20" r=".8" fill="#fff"/><ellipse cx="10.5" cy="26" rx="3" ry="1.8" fill="#FF8FA3" opacity=".75"/><ellipse cx="29.5" cy="26" rx="3" ry="1.8" fill="#FF8FA3" opacity=".75"/><path d="M17.5 26.2q2.5 2.4 5 0" stroke="${ink}" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
