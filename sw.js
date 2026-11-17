@@ -1,7 +1,7 @@
 /* Service worker : l'app marche hors ligne et se met à jour toute seule */
-const CACHE='coparent-v1';
+const CACHE='coparent-v2';
 const SHELL=['./','index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png',
-  'avatars/papa.webp','avatars/maman.webp','avatars/enfant1.webp','avatars/enfant2.webp'];
+  'avatars/papa.webp?v=2','avatars/maman.webp?v=2','avatars/enfant1.webp?v=2','avatars/enfant2.webp?v=2'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{

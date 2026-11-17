@@ -241,7 +241,7 @@ const col=p=>S.settings.parents[p].color;
 const kid=id=>S.children.find(c=>c.id===id);
 const kidName=id=>id==='all'||!id?'Les deux':esc(kid(id)?.name||'?');
 /* ---------- têtes (provisoires : remplaçables plus tard par une photo via person.photo) ---------- */
-const AVATARS={A:'avatars/papa.webp',B:'avatars/maman.webp',c1:'avatars/enfant1.webp',c2:'avatars/enfant2.webp'};
+const AVATARS={A:'avatars/papa.webp?v=2',B:'avatars/maman.webp?v=2',c1:'avatars/enfant1.webp?v=2',c2:'avatars/enfant2.webp?v=2'};
 function person(id){if(id==='A'||id==='B'){const p=S.settings.parents[id];return{name:p.name,color:p.color,photo:p.photo||AVATARS[id],kid:false}}const k=kid(id);return k?{name:k.name,color:k.color||'#86EFAC',photo:k.photo||AVATARS[id],kid:true}:{name:'?',color:'#888',kid:true}}
 function head(id,s=36){
   const p=person(id);
