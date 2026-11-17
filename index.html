@@ -136,6 +136,14 @@ img.full{width:100%;border-radius:14px;margin-top:10px}
 .doc .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .doc.add{border:2px dashed var(--card2);background:transparent;cursor:pointer;color:var(--mut);font-weight:700;justify-content:center;width:100%;font:inherit}
 .doc input[type=file]{display:none}
+/* choix de couleur des têtes */
+.headbtn{position:relative;border:0;background:none;padding:0;border-radius:50%;cursor:pointer;flex:none;transition:transform .15s}
+.headbtn:active{transform:scale(.94)}
+.headbtn .pen{position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:13px;display:flex;align-items:center;justify-content:center;border:3px solid var(--bg)}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:16px}
+.swatches button{aspect-ratio:1;border-radius:50%;border:0;cursor:pointer;transition:transform .15s}
+.swatches button.on{box-shadow:0 0 0 3px var(--card),0 0 0 6px var(--ink)}
+.swatches button:active{transform:scale(.9)}
 /* dépenses récurrentes */
 .sw{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border-radius:16px;margin-top:14px;cursor:pointer}
 .sw .grow{flex:1}
@@ -730,7 +738,7 @@ function unsettle(m){S.months[m]={settled:false};commit(`a rouvert ${fmtM(m)}`)}
 
 /* ---------- vue Enfants ---------- */
 const FICHE=[
- ['Identité',[['name','Prénom'],['birth','Date de naissance','date'],['blood','Groupe sanguin'],['color','Couleur de la tête','color']]],
+ ['Identité',[['name','Prénom'],['birth','Date de naissance','date'],['blood','Groupe sanguin']]],
  ['Santé',[['doctor','Médecin traitant'],['doctorTel','Téléphone du médecin','tel'],['allergies','Allergies','area'],['treatments','Traitements en cours','area'],['vaccins','Vaccins (dernier rappel)','area'],['mutuelle','Mutuelle'],['mutuelleDoc','Attestation de mutuelle','doc']]],
  ['École',[['school','Établissement'],['classe','Classe'],['teacher','Professeur principal'],['schedule','Horaires','area'],['schoolAccess','Accès ENT / Pronote','area']]],
  ['Activités',[['activities','Clubs, coachs, horaires d\'entraînement','area']]],
@@ -743,7 +751,7 @@ function vKids(){
   const k=kid(kidId)||S.children[0];
   const tile=(lab,v)=>`<div class="card"><div class="mut">${lab}</div><div class="v">${v?esc(v):'<span class="mut">—</span>'}</div></div>`;
   return `<div class="chips">${S.children.map(c=>`<button class="chip ${c.id===k.id?'on':''}" onclick="kidId='${c.id}';render()">${head(c.id,30)}${esc(c.name)}</button>`).join('')}</div>
-  <div class="profile">${head(k.id,72)}<div><div class="big">${esc(k.name)}</div><div class="mut">${k.birth?age(k.birth):'Âge à compléter'}${k.classe?' · '+esc(k.classe):''}</div></div></div>
+  <div class="profile"><button class="headbtn" aria-label="Changer la couleur de la tête" onclick="openColor('${k.id}')">${head(k.id,72)}<span class="pen">✎</span></button><div><div class="big">${esc(k.name)}</div><div class="mut">${k.birth?age(k.birth):'Âge à compléter'}${k.classe?' · '+esc(k.classe):''}</div></div></div>
   <div class="tiles">${tile('Taille',k.size)}${tile('Pointure',k.shoe)}${tile('Allergies',k.allergies)}${tile('Médecin',k.doctor)}</div>
   <div class="mut">Les modifications sont enregistrées automatiquement.</div>
   ${FICHE.map(([t,fs])=>`<div class="card"><div class="sec-t">${t}</div>${fs.map(([key,lab,ty])=>ty==='doc'?docField(k,key,lab):`<label class="f">${lab}${ty==='area'?`<textarea onchange="setKid('${k.id}','${key}',this.value)">${esc(k[key])}</textarea>`:`<input type="${ty||'text'}" value="${esc(k[key]||(ty==='color'?'#86EFAC':''))}" onchange="setKid('${k.id}','${key}',this.value)">`}</label>`).join('')}</div>`).join('')}`;
@@ -796,6 +804,21 @@ function delDoc(kidId,key){
   const k=kid(kidId),d=k[key];
   askConfirm(`Retirer « ${d.name} » ?`,()=>{delete k[key];commit(`a retiré le document « ${d.name} » de la fiche de ${k.name}`);if(SY.url)api({action:'delete',id:d.id}).catch(()=>{})});
 }
+/* ---------- couleur des têtes : on touche la tête ---------- */
+const SWATCHES=['#7DD3FC','#93C5FD','#C4B5FD','#F9A8D4','#FDA4AF','#FDBA74','#FDE68A','#BEF264','#86EFAC','#5EEAD4','#E2E8F0','#FCA5A5'];
+function setColor(id,c){
+  if(id==='A'||id==='B'){S.settings.parents[id].color=c}else{kid(id).color=c}
+  commit(`a changé la couleur de ${person(id).name}`);
+  if(document.body.classList.contains('sheet'))openColor(id);
+}
+function openColor(id){
+  const cur=person(id).color;
+  openSheet(`<div style="display:flex;flex-direction:column;align-items:center;gap:8px">${head(id,110)}<h3>${esc(person(id).name)}</h3></div>
+  <div class="swatches">${SWATCHES.map(c=>`<button aria-label="${c}" class="${c.toLowerCase()===String(cur).toLowerCase()?'on':''}" style="background:${c}" onclick="setColor('${id}','${c}')"></button>`).join('')}</div>
+  <label class="f">Autre couleur<input type="color" value="${cur}" onchange="setColor('${id}',this.value)"></label>
+  ${id==='A'||id==='B'?'<div class="mut" style="margin-top:8px">Cette couleur sert aussi pour les nuits dans le calendrier.</div>':''}
+  <button class="btn full" onclick="closeSheet()">Terminé</button>`);
+}
 function setKid(id,key,v){const k=kid(id);const lab=FICHE.flatMap(x=>x[1]).find(f=>f[0]===key)?.[1]||key;k[key]=v.trim();log(`a modifié la fiche de ${k.name} (${lab})`);save();if(['name','birth','color','size','shoe','allergies','doctor','classe'].includes(key))render();else toast('Enregistré')}
 
 /* ---------- vue Plus ---------- */
@@ -827,7 +850,8 @@ function vReg(){
     <label class="f">Code secret<input id="sy_sec"></label>
     <button class="btn full sec" onclick="connectSync(val('sy_url'),val('sy_sec'))">Connecter</button>`}</div>
   <div class="card"><div class="sec-t">Parents</div>
-  ${['A','B'].map(p=>`<div class="two"><label class="f">Parent ${p}<input id="r_n${p}" value="${name(p)}"></label><label class="f">Couleur de la tête<input type="color" id="r_c${p}" value="${col(p)}"></label></div>`).join('')}</div>
+  ${['A','B'].map(p=>`<div class="row" style="margin-top:12px;gap:12px"><button class="headbtn" aria-label="Changer la couleur de la tête" onclick="openColor('${p}')">${head(p,52)}<span class="pen">✎</span></button><label class="f" style="flex:1;margin:0">Prénom affiché<input id="r_n${p}" value="${name(p)}"></label></div>`).join('')}
+  <div class="mut" style="margin-top:8px">Touche une tête pour changer sa couleur.</div></div>
   <div class="card"><div class="sec-t">Rythme de garde</div>
   <div class="mut">Lundi et mardi chez ${name('A')}, mercredi et jeudi chez ${name('B')}, un week-end sur deux (vendredi → lundi).</div>
   <label class="f">Un week-end de référence (n'importe quel jour de ce week-end)<input type="date" id="r_w" value="${st.weekendRef}"></label>
@@ -840,7 +864,7 @@ function vReg(){
 }
 function saveReg(){
   const st=S.settings;
-  ['A','B'].forEach(p=>{st.parents[p].name=val('r_n'+p)||st.parents[p].name;st.parents[p].color=val('r_c'+p)});
+  ['A','B'].forEach(p=>{st.parents[p].name=val('r_n'+p)||st.parents[p].name});
   let w=val('r_w');if(w){const wd=parse(w).getDay();w=addD(w,wd===5?0:wd===6?-1:wd===0?-2:5-wd)}st.weekendRef=w||st.weekendRef;
   st.weekendParent=val('r_wp');st.switchHour=Math.min(23,Math.max(0,parseInt(val('r_h'))||18));
   const z=val('r_z'),zc=z!==st.zone;st.zone=z;
