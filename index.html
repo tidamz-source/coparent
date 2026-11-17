@@ -536,7 +536,7 @@ function stopRecur(id){
 function toggleSw(el){el.classList.toggle('on');const d=val('x_d');if(d)$('#x_day').textContent=parseInt(d.slice(8))}
 
 /* ---------- navigation ---------- */
-let tab='today',calM=curMonth(),depM=curMonth(),kidId='c1',sub='journal';
+let tab='today',calM=curMonth(),depM=curMonth(),kidId='c1',sub='reg';
 const TITLES={today:"Aujourd'hui",cal:'Calendrier',dep:'Dépenses',kids:'Enfants',plus:'Plus'};
 function go(t){if(t!==tab)for(const k in lastInd)if(k!=='nav')delete lastInd[k];tab=t;render();window.scrollTo(0,0)}
 /* ---------- indicateur glissant ---------- */
@@ -849,7 +849,7 @@ function setKid(id,key,v){const k=kid(id);const lab=FICHE.flatMap(x=>x[1]).find(
 
 /* ---------- vue Plus ---------- */
 function vPlus(){
-  const tabs={journal:'Journal',reg:'Réglages',save:'Sauvegarde'};
+  const tabs={reg:'Réglages',journal:'Journal',save:'Sauvegarde'};
   return `<div class="seg slider" data-k="plus">${Object.entries(tabs).map(([k,v])=>`<button class="${sub===k?'on':''}" onclick="sub='${k}';render()">${v}</button>`).join('')}</div>`+(({journal:vJournal,reg:vReg,save:vSave})[sub]||vJournal)();
 }
 function vJournal(){
