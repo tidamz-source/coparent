@@ -536,7 +536,7 @@ function stopRecur(id){
 function toggleSw(el){el.classList.toggle('on');const d=val('x_d');if(d)$('#x_day').textContent=parseInt(d.slice(8))}
 
 /* ---------- navigation ---------- */
-let tab='today',calM=curMonth(),depM=curMonth(),kidId='c1',sub='vac';
+let tab='today',calM=curMonth(),depM=curMonth(),kidId='c1',sub='journal';
 const TITLES={today:"Aujourd'hui",cal:'Calendrier',dep:'Dépenses',kids:'Enfants',plus:'Plus'};
 function go(t){if(t!==tab)for(const k in lastInd)if(k!=='nav')delete lastInd[k];tab=t;render();window.scrollTo(0,0)}
 /* ---------- indicateur glissant ---------- */
@@ -607,7 +607,7 @@ function vToday(){
     ${ns?`<div style="margin-top:4px;font-size:14px;font-weight:700">${fmtS(ns.date)} ${S.settings.switchHour}h → ${ns.to==='N'?'vacances à répartir':name(ns.to)}</div>`:''}</div>
   </div>
   <div class="card" style="padding:6px"><div class="week">${wk}</div></div>
-  ${vv?`<div class="card" onclick="go('plus');sub='vac';render()" style="cursor:pointer"><div class="row sp"><b>${vEmoji(vv.n)} ${esc(vv.n)}</b><span class="mut">${v?'en cours':'dans '+days+' jour'+(days>1?'s':'')}</span></div><div style="margin-top:10px">${vacSummary(vv)}</div></div>`:''}
+  ${vv?`<div class="card" onclick="calM='${vv.s.slice(0,7)}';go('cal')" style="cursor:pointer"><div class="row sp"><b>${vEmoji(vv.n)} ${esc(vv.n)}</b><span class="mut">${v?'en cours':'dans '+days+' jour'+(days>1?'s':'')}</span></div><div style="margin-top:10px">${vacSummary(vv)}</div></div>`:''}
   <div class="minis">
     <div class="card" onclick="${nx?`openEvent('${nx.id}')`:`go('cal')`}"><div class="mut">Prochain événement</div>${nx?`<div class="row" style="gap:8px;margin-top:6px">${kidHeads(nx.child,24)}<b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nx.title)}</b></div><div class="mut" style="margin-top:2px">${fmtS(nx.date)}${nx.time?' · '+esc(nx.time):''}</div>`:'<div style="margin-top:6px;font-weight:700">Rien de prévu</div>'}</div>
     <div class="card" onclick="go('dep')"><div class="mut">Dépenses</div>${Math.abs(b)<.005?'<div style="margin-top:6px;font-weight:800">Équilibre ✓</div>':`<div style="font-size:21px;font-weight:800;color:${col(debtor)};margin-top:4px">${fmtE(Math.abs(b))}</div><div class="row mut" style="gap:4px">${head(debtor,18)} → ${head(other(debtor),18)}</div>`}</div>
@@ -849,12 +849,8 @@ function setKid(id,key,v){const k=kid(id);const lab=FICHE.flatMap(x=>x[1]).find(
 
 /* ---------- vue Plus ---------- */
 function vPlus(){
-  const tabs={vac:'Vacances',journal:'Journal',reg:'Réglages',save:'Sauvegarde'};
-  return `<div class="seg slider" data-k="plus">${Object.entries(tabs).map(([k,v])=>`<button class="${sub===k?'on':''}" onclick="sub='${k}';render()">${v}</button>`).join('')}</div>`+({vac:vVacs,journal:vJournal,reg:vReg,save:vSave})[sub]();
-}
-function vVacs(){
-  const t=today(),list=VAC().filter(v=>v.e>t);
-  return `<div class="mut">Choisis comment chaque période est partagée. La bascule se fait à ${S.settings.switchHour}h. Un échange ponctuel (Calendrier) reste prioritaire.</div>`+(list.length?list.map(vacCard).join(''):'<div class="card empty">Aucune période connue</div>');
+  const tabs={journal:'Journal',reg:'Réglages',save:'Sauvegarde'};
+  return `<div class="seg slider" data-k="plus">${Object.entries(tabs).map(([k,v])=>`<button class="${sub===k?'on':''}" onclick="sub='${k}';render()">${v}</button>`).join('')}</div>`+(({journal:vJournal,reg:vReg,save:vSave})[sub]||vJournal)();
 }
 function vJournal(){
   return `<div class="card">${S.log.length?S.log.slice(0,100).map(l=>{const d=new Date(l.ts);return `<div class="li" style="cursor:default">${head(l.who,32)}<div class="grow"><div><b>${name(l.who)}</b> ${esc(l.text)}</div><div class="mut">${fmtS(ymd(d))} à ${pad(d.getHours())}h${pad(d.getMinutes())}</div></div></div>`}).join(''):'<div class="empty">Aucune modification pour l\'instant</div>'}</div>`;
