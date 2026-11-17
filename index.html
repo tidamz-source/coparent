@@ -694,7 +694,7 @@ function vDep(){
     ${head(e.payer,36)}
     <div class="grow"><div class="t">${esc(e.label)}${e.recurId?'<span class="rbadge">↻</span>':''}</div><div class="mut">${fmtS(e.date)} · ${(CATS[e.cat]||'').split(' ').slice(1).join(' ')} · ${kidName(e.child)} · payé par ${name(e.payer)}</div></div><b style="${e.amount<0?'color:#86EFAC':''}">${fmtE(e.amount)}</b></div>`).join(''):'<div class="empty">Aucune dépense. Touche + pour en ajouter.</div>'}</div>
   <h2>Historique</h2>
-  <div class="card">${hist.length?hist.map(m=>{const s=monthStats(m),ok=S.months[m]?.settled;return `<div class="li" onclick="depM='${m}';render();scrollTo(0,0)"><div class="grow"><div class="t">${fmtM(m)}</div><div class="mut">${fmtE(s.total)} · ${ok?'réglé le '+fmtS(S.months[m].at):(Math.abs(s.bal)<.005?'équilibre':name(s.bal>0?'B':'A')+' doit '+fmtE(Math.abs(s.bal)))}</div></div><span class="pill ${ok?'ok':'wait'}">${ok?'Réglé':'À régler'}</span></div>`}).join(''):'<div class="empty">Pas encore d\'historique</div>'}</div>`;
+  <div class="card">${hist.length?hist.map(m=>{const s=monthStats(m),ok=S.months[m]?.settled;return `<div class="li" onclick="depM='${m}';render();scrollTo(0,0)"><div class="grow"><div class="t">${fmtM(m)}</div><div class="mut">${fmtE(s.total)} · ${ok?'réglé le '+fmtS(S.months[m].at):(Math.abs(s.bal)<.005?'équilibre':name(s.bal>0?'B':'A')+' doit '+fmtE(Math.abs(s.bal))+' à '+name(s.bal>0?'A':'B'))}</div></div><span class="pill ${ok?'ok':'wait'}">${ok?'Réglé':'À régler'}</span></div>`}).join(''):'<div class="empty">Pas encore d\'historique</div>'}</div>`;
 }
 function openExp(id,recur){
   const e=id?S.expenses.find(x=>x.id===id):{date:today(),payer:S.settings.me,cat:'ecole',child:'all'};
