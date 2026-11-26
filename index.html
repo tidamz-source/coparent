@@ -328,6 +328,35 @@ async function sync(){
   }catch(e){SY.err=String(e.message||e).includes('fetch')?'Pas de connexion au script':String(e.message||e)}
   syncing=false;delete SY.busy;saveSY();syncBadge();
   if(syncAgain){syncAgain=false;sync()}
+  else if(!SY.err)calSync();
+}
+/* ---------- événements → agenda Google partagé « Coparentalité – événements » ----------
+   Sens unique : l'app envoie la liste, le script crée / met à jour / supprime dans l'agenda. */
+function calPayload(){
+  const t=today(),lo=addD(t,-60),hi=addD(t,400);
+  return S.events.filter(e=>e.date>=lo&&e.date<=hi).sort((a,b)=>a.id<b.id?-1:1).map(e=>{
+    const kids=e.child==='all'||!e.child?S.children.map(c=>c.name).join(' & '):(kid(e.child)?.name||'');
+    const em=(EV_TYPES[e.type]||'📌').split(' ')[0];
+    const who=e.who==='both'?'Les deux parents':(e.who==='A'||e.who==='B')?S.settings.parents[e.who].name:'';
+    const desc=[kids&&'Enfant : '+kids,who&&'Accompagne : '+who,e.note].filter(Boolean).join('\n')+'\n\n— Depuis l\'app Coparentalité';
+    const o={id:e.id,title:`${em} ${e.title}${kids?' · '+kids:''}`,date:e.date,time:e.time||'',place:e.place||'',desc};
+    o.h=String(hash(JSON.stringify(o)));return o;
+  });
+}
+let calBusy=false;
+async function calSync(force){
+  if(!SY.url||calBusy)return;
+  const evs=calPayload(),h=String(hash(JSON.stringify(evs)));
+  if(!force&&SY.calHash===h)return;
+  calBusy=true;
+  try{const j=await api({action:'calsync',events:evs});SY.calHash=h;SY.calErr='';SY.calName=j.calendar;SY.calN=j.count;if(force)toast('Agenda à jour ✓')}
+  catch(e){SY.calErr=e.message.includes('fetch')?'pas de connexion':e.message;if(force)toast('Agenda : '+SY.calErr)}
+  calBusy=false;saveSY();const st=$('#calst');if(st)st.innerHTML=calText();
+}
+function calText(){
+  if(SY.calErr)return `<span style="color:#FCA5A5">⚠ Agenda Google : ${esc(SY.calErr)}</span>`;
+  if(SY.calName)return `<span style="color:#86EFAC">●</span> Agenda « ${esc(SY.calName)} » · ${SY.calN||0} événement${(SY.calN||0)>1?'s':''}`;
+  return 'Agenda Google : en attente…';
 }
 function syncBadge(){const m=$('#me');if(m)m.dataset.sync=!SY.url?'':SY.err?'err':SY.busy?'busy':'ok';const st=$('#syncst');if(st)st.innerHTML=syncText()}
 function syncText(){
@@ -862,6 +891,8 @@ function vReg(){
   <div class="mut">Propre à ce téléphone. Sert au journal et à préremplir « payé par ».</div></div>
   <div class="card"><div class="sec-t">Synchronisation Google Sheets</div>
   ${SY.url?`<div id="syncst" style="margin:6px 0 2px">${syncText()}</div>
+    <div id="calst" class="mut" style="margin:2px 0 4px">${calText()}</div>
+    <button class="btn full sec" onclick="calSync(true)">Renvoyer les événements vers l'agenda</button>
     <div class="two"><button class="btn full" onclick="sync()">Synchroniser</button><button class="btn full sec" onclick="copyInvite()">Inviter l'autre parent</button></div>
     <button class="btn full dan" onclick="disconnectSync()">Déconnecter ce téléphone</button>`
   :`<div class="mut">Partage les données entre vos deux téléphones via un Google Sheet.</div>

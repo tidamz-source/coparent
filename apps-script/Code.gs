@@ -31,6 +31,13 @@ function doPost(e) {
     return out({ ok: true });
   }
 
+  // Événements de l'app → agenda Google « Coparentalité – événements » (sens unique)
+  if (body.action === 'calsync') {
+    const lk = LockService.getScriptLock();
+    lk.waitLock(30000);
+    try { return out(calSync(body.events || [])); } finally { lk.releaseLock(); }
+  }
+
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -88,6 +95,49 @@ function docFile(id) {
     while (parents.hasNext()) if (parents.next().getId() === folderId) return f;
   } catch (x) {}
   return null;
+}
+
+const CAL_NAME = 'Coparentalité – événements';
+function getCal() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('CAL_ID');
+  let cal = id ? CalendarApp.getCalendarById(id) : null;
+  if (!cal) {
+    cal = CalendarApp.createCalendar(CAL_NAME);
+    try { cal.setTimeZone('Europe/Paris'); } catch (x) {}
+    try { cal.setColor(CalendarApp.Color.PURPLE); } catch (x) {}
+    props.setProperty('CAL_ID', cal.getId());
+  }
+  return cal;
+}
+function calSync(events) {
+  const cal = getCal();
+  const now = new Date();
+  const from = new Date(now.getTime() - 90 * 864e5), to = new Date(now.getTime() + 500 * 864e5);
+  const byId = {};
+  cal.getEvents(from, to).forEach(ev => {
+    const id = ev.getTag('coparentId');
+    if (!id) return;
+    if (byId[id]) ev.deleteEvent(); else byId[id] = ev; // nettoie un éventuel doublon
+  });
+  const seen = {};
+  events.forEach(e => {
+    seen[e.id] = true;
+    let ev = byId[e.id];
+    if (ev && ev.getTag('coparentHash') === e.h) return; // inchangé
+    if (ev) ev.deleteEvent();
+    const opts = { location: e.place || '', description: e.desc || '' };
+    if (e.time) {
+      const start = Utilities.parseDate(e.date + ' ' + e.time, 'Europe/Paris', 'yyyy-MM-dd HH:mm');
+      ev = cal.createEvent(e.title, start, new Date(start.getTime() + 60 * 60000), opts);
+    } else {
+      ev = cal.createAllDayEvent(e.title, Utilities.parseDate(e.date + ' 12:00', 'Europe/Paris', 'yyyy-MM-dd HH:mm'), opts);
+    }
+    ev.setTag('coparentId', e.id);
+    ev.setTag('coparentHash', e.h);
+  });
+  Object.keys(byId).forEach(id => { if (!seen[id]) byId[id].deleteEvent(); });
+  return { ok: true, calendar: cal.getName(), count: events.length };
 }
 
 function out(o) {
